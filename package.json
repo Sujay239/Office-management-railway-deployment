@@ -1,14 +1,13 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "type": "commonjs",
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch index.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },
-  "module": "commonjs",
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
@@ -35,7 +34,6 @@
     "@types/nodemailer": "^6.4.14",
     "@types/pg": "^8.11.6",
     "@types/puppeteer": "^5.4.7",
-    "@types/socket.io": "latest",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
