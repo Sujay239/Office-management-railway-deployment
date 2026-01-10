@@ -19,7 +19,6 @@ import meetingRoutes from './routes/admin/meetings';
 import adminDepartments from './routes/admin/adminDepartments';
 import auditLogsRoutes from './routes/superadmin/auditLogs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import settings from './routes/employees/setting';
 import empDashboardRoutes from './routes/employees/dashboard';
 import clearTable from './scripts/clearTable';
@@ -33,12 +32,13 @@ import chatRoutes from './routes/chat';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { handleSocketConnection } from './controllers/chatController';
+const __dirname = path.resolve();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+
+
 
 const corsOptions = {
-  origin: 'http://localhost:5173',
+  origin: process.env.CLIENT_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -47,12 +47,12 @@ const corsOptions = {
 
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 5000;
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:5173',
+    origin:  process.env.CLIENT_URL,
     credentials: true,
     methods: ['GET', 'POST']
   }
@@ -91,8 +91,8 @@ app.use(express.json({ limit: '50mb' }));
 app.use(cookieParser());
 app.use(cors(corsOptions));
 
-// Force restart 11ic files from the "uploads" directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 
 // Schedule: 26th of every month at 00:00 (Midnight)
 cron.schedule('0 0 26 * *', async () => {
