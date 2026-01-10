@@ -7,7 +7,7 @@ import { enforce2FA } from '../../middlewares/enforce2FA.js';
 const router = express.Router();
 
 // Get all departments with manager details and staff count
-import isAdmin from '../../middlewares/isAdmin'; // Import isAdmin
+import isAdmin from '../../middlewares/isAdmin.js'; // Import isAdmin
 
 router.get('/getAll', authenticateToken, isAdmin, enforce2FA, async (req: Request, res: Response) => {
     try {
