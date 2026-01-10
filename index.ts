@@ -26,7 +26,7 @@ import adminDepartments from './routes/admin/adminDepartments.js';
 import auditLogsRoutes from './routes/superadmin/auditLogs.js';
 import settings from './routes/employees/setting.js';
 import empDashboardRoutes from './routes/employees/dashboard.js';
-import clearTable from './scripts/clearTable.js';
+// import clearTable from './scripts/clearTable.js';
 import tasks from './routes/employees/tasks.js';
 import notifications from './routes/admin/notifications.js';
 import empNotification from './routes/employees/Notification.js';
@@ -140,7 +140,7 @@ app.use('/employee/leaves', Leaves);
 app.use('/api/chats', chatRoutes);
 
 // Scripts
-app.use('/scripts', clearTable);
+// app.use('/scripts', clearTable);
 
 // Health
 app.get('/health-check', (req, res) => {
