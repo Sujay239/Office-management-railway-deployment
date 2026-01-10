@@ -1,16 +1,16 @@
 import express, { Request, Response } from "express";
-import pool from "../../db/db";
-import hashPassword from "../../utils/hashPassword";
-import { authenticateToken } from "../../middlewares/authenticateToken";
-import isAdmin from "../../middlewares/isAdmin";
-import decodeToken from "../../utils/decodeToken";
-import matchPassword from "../../utils/matchPassword";
-import { enforce2FA } from "../../middlewares/enforce2FA";
-import { sendEmail } from "../../utils/mailer";
-import { welcomeEmployeeEmail } from "../../templates/welcomeEmployeeEmail";
-import { offerLetterTemplate } from "../../templates/offerLetter";
-import { generatePdf } from "../../utils/pdfGenerator";
-import { logAudit } from "../../utils/auditLogger";
+import pool from "../../db/db.js";
+import hashPassword from "../../utils/hashPassword.js";
+import { authenticateToken } from "../../middlewares/authenticateToken.js";
+import isAdmin from "../../middlewares/isAdmin.js";
+import decodeToken from "../../utils/decodeToken.js";
+import matchPassword from "../../utils/matchPassword.js";
+import { enforce2FA } from "../../middlewares/enforce2FA.js";
+import { sendEmail } from "../../utils/mailer.js";
+import { welcomeEmployeeEmail } from "../../templates/welcomeEmployeeEmail.js";
+import { offerLetterTemplate } from "../../templates/offerLetter.js";
+import { generatePdf } from "../../utils/pdfGenerator.js";
+import { logAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 

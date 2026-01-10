@@ -1,4 +1,4 @@
-import pool from '../db/db';
+import pool from '../db/db.js';
 
 export const logAudit = async (
     userId: number | null,

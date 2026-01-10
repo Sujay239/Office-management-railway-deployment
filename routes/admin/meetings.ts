@@ -1,10 +1,10 @@
 import express, { Request, Response } from "express";
-import pool from "../../db/db";
-import { authenticateToken } from "../../middlewares/authenticateToken";
-import isAdmin from "../../middlewares/isAdmin";
-import { enforce2FA } from "../../middlewares/enforce2FA";
-import { sendEmail } from "../../utils/mailer";
-import { meetingInvitationEmail } from "../../templates/meetingInvitationEmail";
+import pool from "../../db/db.js";
+import { authenticateToken } from "../../middlewares/authenticateToken.js";
+import isAdmin from "../../middlewares/isAdmin.js";
+import { enforce2FA } from "../../middlewares/enforce2FA.js";
+import { sendEmail } from "../../utils/mailer.js";
+import { meetingInvitationEmail } from "../../templates/meetingInvitationEmail.js";
 
 const router = express.Router();
 

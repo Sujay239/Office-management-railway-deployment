@@ -1,6 +1,6 @@
 import express from 'express';
 import { getChats, getMessages, getOrCreateDirectChat, getUsers, createChat, markMessagesRead as markMessagesAsReadController, makeAdmin, removeMember, addMembers, leaveChat } from '../controllers/chatController';
-import { authenticateToken } from '../middlewares/authenticateToken';
+import { authenticateToken } from '../middlewares/authenticateToken.js';
 
 const router = express.Router();
 

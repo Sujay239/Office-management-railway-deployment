@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
-import pool from '../../db/db';
-import { authenticateToken } from '../../middlewares/authenticateToken';
-import isEmployee from '../../middlewares/isEmployee';
+import pool from '../../db/db.js';
+import { authenticateToken } from '../../middlewares/authenticateToken.js';
+import isEmployee from '../../middlewares/isEmployee.js';
 
 const router = express.Router();
 

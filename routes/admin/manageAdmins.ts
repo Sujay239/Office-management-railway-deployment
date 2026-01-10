@@ -1,11 +1,11 @@
 import express, { Request, Response } from 'express';
-import pool from '../../db/db';
-import hashPassword from '../../utils/hashPassword';
-import matchPassword from '../../utils/matchPassword';
-import { authenticateToken } from '../../middlewares/authenticateToken';
-import isSuperAdmin from '../../middlewares/isSuperAdmin';
-import { enforce2FA } from '../../middlewares/enforce2FA';
-import decodeToken from '../../utils/decodeToken';
+import pool from '../../db/db.js';
+import hashPassword from '../../utils/hashPassword.js';
+import matchPassword from '../../utils/matchPassword.js';
+import { authenticateToken } from '../../middlewares/authenticateToken.js';
+import isSuperAdmin from '../../middlewares/isSuperAdmin.js';
+import { enforce2FA } from '../../middlewares/enforce2FA.js';
+import decodeToken from '../../utils/decodeToken.js';
 const router = express.Router();
 
 

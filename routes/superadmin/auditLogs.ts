@@ -1,8 +1,8 @@
 import express, { Request, Response } from 'express';
-import pool from '../../db/db';
-import { authenticateToken } from '../../middlewares/authenticateToken';
-import isAdmin from '../../middlewares/isAdmin'; // Ideally create isSuperAdmin, but using isAdmin for now based on context or check role manually
-import { enforce2FA } from '../../middlewares/enforce2FA';
+import pool from '../../db/db.js';
+import { authenticateToken } from '../../middlewares/authenticateToken.js';
+// import isAdmin from '../../middlewares/isAdmin'; // Ideally create isSuperAdmin, but using isAdmin for now based on context or check role manually
+import { enforce2FA } from '../../middlewares/enforce2FA.js';
 
 const router = express.Router();
 

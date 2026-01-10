@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import pool from '../db/db';
-import decodeToken from '../utils/decodeToken';
+import pool from '../db/db.js';
+import decodeToken from '../utils/decodeToken.js';
 
 export const enforce2FA = async (req: Request, res: Response, next: NextFunction) => {
     const token = req.cookies?.token;

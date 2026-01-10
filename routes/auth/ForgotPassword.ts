@@ -1,9 +1,9 @@
 import express, { Request, Response } from "express";
-import pool from "../../db/db";
+import pool from "../../db/db.js";
 import crypto from "crypto";
-import { sendEmail } from "../../utils/mailer";
-import getResetPasswordHtml from "../../templates/resetPasswordEmail";
-import hashPassword from "../../utils/hashPassword";
+import { sendEmail } from "../../utils/mailer.js";
+import getResetPasswordHtml from "../../templates/resetPasswordEmail.js";
+import hashPassword from "../../utils/hashPassword.js";
 
 const router = express.Router();
 

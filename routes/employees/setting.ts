@@ -1,10 +1,10 @@
 import express, { Request, Response } from 'express';
-import pool from '../../db/db';
-import { authenticateToken } from '../../middlewares/authenticateToken';
-import decodeToken from '../../utils/decodeToken';
-import matchPassword from '../../utils/matchPassword';
-import hashPassword from '../../utils/hashPassword';
-import { logAudit } from '../../utils/auditLogger';
+import pool from '../../db/db.js';
+import { authenticateToken } from '../../middlewares/authenticateToken.js';
+import decodeToken from '../../utils/decodeToken.js';
+import matchPassword from '../../utils/matchPassword.js';
+import hashPassword from '../../utils/hashPassword.js';
+import { logAudit } from '../../utils/auditLogger.js';
 const router = express.Router();
 
 

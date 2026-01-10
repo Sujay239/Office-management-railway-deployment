@@ -1,8 +1,8 @@
 import express, { Request, Response } from 'express';
-import pool from '../../db/db';
-import { authenticateToken } from '../../middlewares/authenticateToken';
-import isSuperAdmin from '../../middlewares/isSuperAdmin';
-import { enforce2FA } from '../../middlewares/enforce2FA';
+import pool from '../../db/db.js';
+import { authenticateToken } from '../../middlewares/authenticateToken.js';
+import isSuperAdmin from '../../middlewares/isSuperAdmin.js';
+import { enforce2FA } from '../../middlewares/enforce2FA.js';
 
 const router = express.Router();
 

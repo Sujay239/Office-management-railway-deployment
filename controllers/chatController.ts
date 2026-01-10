@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Server, Socket } from 'socket.io';
-import db from '../db/db';
-import decodeToken from '../utils/decodeToken';
+import db from '../db/db.js';
+import decodeToken from '../utils/decodeToken.js';
 
 export const getChats = async (req: Request, res: Response) => {
     const userId = (req as any).user.id; // Assumes auth middleware populates user

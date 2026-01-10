@@ -1,13 +1,13 @@
 import express, { Request, Response } from 'express';
-import pool from '../../db/db';
-import { authenticateToken } from '../../middlewares/authenticateToken';
-import isAdmin from '../../middlewares/isAdmin';
-import { enforce2FA } from '../../middlewares/enforce2FA';
+import pool from '../../db/db.js';
+import { authenticateToken } from '../../middlewares/authenticateToken.js';
+import isAdmin from '../../middlewares/isAdmin.js';
+import { enforce2FA } from '../../middlewares/enforce2FA.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import bcrypt from 'bcrypt';
-import decodeToken from '../../utils/decodeToken';
+import decodeToken from '../../utils/decodeToken.js';
 
 const router = express.Router();
 

@@ -1,8 +1,8 @@
 import express, { Request, Response } from 'express';
-import pool from '../../db/db';
-import isEmployee from '../../middlewares/isEmployee';
-import { authenticateToken } from '../../middlewares/authenticateToken';
-import decodeToken from '../../utils/decodeToken';
+import pool from '../../db/db.js';
+import isEmployee from '../../middlewares/isEmployee.js';
+import { authenticateToken } from '../../middlewares/authenticateToken.js';
+import decodeToken from '../../utils/decodeToken.js';
 
 const router = express.Router();
 
