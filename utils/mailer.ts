@@ -25,7 +25,7 @@ export const sendEmail = async ({ to, subject, text, html, from }: SendMailOptio
     try {
         const companyName = "Auto Computation";
 
-        const sender = from || `"${companyName}" <${process.env.SMTP_USER}>`;
+        const sender = from || `"${companyName}" <sujaykumarkotal49@gmail.com>`;
 
         const info = await transporter.sendMail({
             from: sender,
