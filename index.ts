@@ -36,6 +36,7 @@ import Leaves from './routes/employees/Leaves.js';
 import chatRoutes from './routes/chat.js';
 import { handleSocketConnection } from './controllers/chatController.js';
 import adminAttendance from './routes/admin/adminAttendance.js';
+import { sendEmail } from "./utils/mailer.js";
 
 
 // ===== FIX __dirname FOR ESM =====
@@ -148,6 +149,26 @@ app.use('/api/chats', chatRoutes);
 app.get('/health-check', (req, res) => {
   res.send('Backend is running!');
 });
+
+
+
+app.get("/debug-mail", async (req, res) => {
+  try {
+    console.log("🚀 /debug-mail hit");
+
+    const info = await sendEmail({
+      to: "sujaykumarkotal49@gmail.com",
+      subject: "Brevo SMTP Test",
+      text: "If you received this, Brevo SMTP is working correctly.",
+    });
+
+    res.json({ success: true, info });
+  } catch (err) {
+    console.error("❌ DEBUG MAIL ERROR:", err);
+    res.status(500).json({ error: "Mail failed", details: err });
+  }
+});
+
 
 // ===== SOCKET INIT =====
 handleSocketConnection(io);
