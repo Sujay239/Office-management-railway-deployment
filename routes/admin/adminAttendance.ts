@@ -112,7 +112,7 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                     a.id as attendance_id
                 FROM users u
                 LEFT JOIN attendance a ON u.id = a.user_id AND a.date = $1
-                WHERE u.role != 'admin' AND u.status = 'Active'
+               WHERE role != 'admin' AND role != 'super_admin' AND u.status = 'Active'
                 ORDER BY u.name ASC
             `;
 
