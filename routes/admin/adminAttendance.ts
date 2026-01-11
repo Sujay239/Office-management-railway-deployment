@@ -5,30 +5,36 @@ import isAdmin from '../../middlewares/isAdmin.js';
 
 const router = express.Router();
 
-// YOUR FORMAT FUNCTION
-const formatTime = (isoString: string | null) => {
-    if (!isoString) return "--";
+/**
+ * HELPER: Formats "14:30:00" (from DB) to "02:30 PM" (for UI)
+ * This ensures Admin side matches User side formatting.
+ */
+const formatToUserStyle = (timeStr: string | null): string => {
+    if (!timeStr || timeStr === null) return "-";
     try {
-        const date = new Date(isoString);
-        return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        const [hours, minutes] = timeStr.split(':');
+        let h = parseInt(hours, 10);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12 || 12; // Converts 0 to 12
+        
+        // Return format: "02:30 PM"
+        return `${h.toString().padStart(2, '0')}:${minutes} ${ampm}`;
     } catch (e) {
-        return "--";
+        return "-";
     }
 };
 
-// HELPER TO CALCULATE HOURS
-const calculateTotalHours = (startIso: string | null, endIso: string | null) => {
-    if (!startIso || !endIso) return "0h 00m";
+/**
+ * HELPER: Calculates total working duration
+ */
+const calculateTotalHours = (startStr: string | null, endStr: string | null): string => {
+    if (!startStr || !endStr) return "0h 00m";
     try {
-        const startDate = new Date(startIso);
-        const endDate = new Date(endIso);
-        
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "0h 00m";
+        const [h1, m1] = startStr.split(':').map(Number);
+        const [h2, m2] = endStr.split(':').map(Number);
 
-        const diffMs = endDate.getTime() - startDate.getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-
-        if (diffMins < 0) return "0h 00m";
+        let diffMins = (h2 * 60 + m2) - (h1 * 60 + m1);
+        if (diffMins < 0) diffMins += 24 * 60; 
 
         const h = Math.floor(diffMins / 60);
         const m = diffMins % 60;
@@ -38,7 +44,6 @@ const calculateTotalHours = (startIso: string | null, endIso: string | null) => 
     }
 };
 
-// Get Attendance Data
 router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
         const { mode, date, month, year } = req.query;
@@ -46,7 +51,6 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
         if (mode === 'daily') {
             if (!date) return res.status(400).json({ message: "Date is required" });
 
-            // SQL: Combining date and time so formatTime gets a full ISO string
             const query = `
                 SELECT
                     u.id as user_id,
@@ -54,8 +58,8 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                     u.avatar_url,
                     u.designation,
                     COALESCE(a.status, 'Absent') as status,
-                    (a.date + a.check_in_time) as check_in_full,
-                    (a.date + a.check_out_time) as check_out_full,
+                    to_char(a.check_in_time, 'HH24:MI:SS') as check_in_raw,
+                    to_char(a.check_out_time, 'HH24:MI:SS') as check_out_raw,
                     a.id as attendance_id
                 FROM users u
                 LEFT JOIN attendance a ON u.id = a.user_id AND a.date = $1
@@ -71,10 +75,11 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                 name: row.name,
                 avatar: row.avatar_url,
                 designation: row.designation,
-                date: date,
-                checkIn: formatTime(row.check_in_full),
-                checkOut: formatTime(row.check_out_full),
-                hours: calculateTotalHours(row.check_in_full, row.check_out_full),
+                date: String(date),
+                // Send formatted strings to match User-side look
+                checkIn: formatToUserStyle(row.check_in_raw),
+                checkOut: formatToUserStyle(row.check_out_raw),
+                hours: calculateTotalHours(row.check_in_raw, row.check_out_raw),
                 status: row.status
             }));
 
@@ -88,8 +93,8 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                     a.id,
                     to_char(a.date, 'YYYY-MM-DD') as date_str,
                     a.status,
-                    (a.date + a.check_in_time) as check_in_full,
-                    (a.date + a.check_out_full) as check_out_full,
+                    to_char(a.check_in_time, 'HH24:MI:SS') as check_in_raw,
+                    to_char(a.check_out_time, 'HH24:MI:SS') as check_out_raw,
                     u.name,
                     u.avatar_url,
                     u.designation
@@ -97,7 +102,7 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                 JOIN users u ON a.user_id = u.id
                 WHERE EXTRACT(MONTH FROM a.date) = $1
                   AND EXTRACT(YEAR FROM a.date) = $2
-                ORDER BY a.date DESC, a.check_in_time DESC
+                ORDER BY a.date DESC
             `;
 
             const result = await pool.query(query, [month, year]);
@@ -108,9 +113,9 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                 avatar: row.avatar_url,
                 designation: row.designation,
                 date: row.date_str,
-                checkIn: formatTime(row.check_in_full),
-                checkOut: formatTime(row.check_out_full),
-                hours: calculateTotalHours(row.check_in_full, row.check_out_full),
+                checkIn: formatToUserStyle(row.check_in_raw),
+                checkOut: formatToUserStyle(row.check_out_raw),
+                hours: calculateTotalHours(row.check_in_raw, row.check_out_raw),
                 status: row.status
             }));
 
@@ -118,7 +123,7 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
         }
 
     } catch (error) {
-        console.error("Error:", error);
+        console.error("Admin Attendance Error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 });
