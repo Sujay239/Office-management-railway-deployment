@@ -8,6 +8,9 @@ import { announcementEmail } from "../../templates/announcementEmail.js";
 
 const router = express.Router();
 
+// Helper to pause execution (prevents spam flagging)
+const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
 router.post(
   "/send",
   authenticateToken,
@@ -32,7 +35,7 @@ router.post(
       if (employees.length === 0) {
         return res
           .status(404)
-          .json({ message: "No active employees found to send announcement to." });
+          .json({ message: "No active employees found." });
       }
 
       const htmlContent = announcementEmail(
@@ -42,33 +45,38 @@ router.post(
       );
 
       console.log(
-        `Sending announcement to ${employees.length} employees...`
+        `Sending announcement to ${employees.length} employees (throttled)...`
       );
 
-      // 2. Send Emails (Wait for completion)
-      // We use map to create an array of promises, then await all of them.
-      const emailPromises = employees.map((emp) =>
-        sendEmail({
-          to: emp.email,
-          subject: priority === "High" ? `[URGENT] ${subject}` : subject,
-          html: htmlContent,
-          text: message, // Fallback plain text
-        })
-      );
+      // 2. Send Emails Sequentially (Safer for Brevo)
+      let successCount = 0;
+      let failCount = 0;
 
-      // This waits until ALL emails are processed (success or fail)
-      const results = await Promise.allSettled(emailPromises);
+      for (const emp of employees) {
+        try {
+          await sendEmail({
+            to: emp.email,
+            subject: priority === "High" ? `[URGENT] ${subject}` : subject,
+            html: htmlContent,
+            text: message,
+          });
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to send to ${emp.email}`, err);
+          failCount++;
+        }
 
-      // 3. Calculate Stats
-      const successCount = results.filter((r) => r.status === "fulfilled").length;
-      const failCount = results.filter((r) => r.status === "rejected").length;
+        // ⚠️ Wait 200ms between emails to prevent rate-limiting/spam flags
+        // 5 employees = 1 second. 100 employees = 20 seconds.
+        await delay(200); 
+      }
 
       console.log(
         `Announcement sent. Success: ${successCount}, Failed: ${failCount}`
       );
 
-      // 4. Send Response WITH Stats
-      // Now the frontend will receive the 'stats' object it expects
+      // 3. Send Response WITH Stats
+      // This matches exactly what your frontend expects
       return res.status(200).json({
         message: "Announcement broadcast completed.",
         stats: {
