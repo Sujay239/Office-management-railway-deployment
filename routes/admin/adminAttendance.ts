@@ -5,86 +5,6 @@ import isAdmin from '../../middlewares/isAdmin.js';
 
 const router = express.Router();
 
-// Helper to format time (Fixed to avoid 5:30h timezone shift)
-const formatTime = (timeInput: string | Date | null, dateStr?: string) => {
-    if (!timeInput) return "-";
-
-    try {
-        // 1. If it's already a Date object (from a TIMESTAMP column)
-        if (timeInput instanceof Date) {
-            return timeInput.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        }
-
-        const timeStr = String(timeInput);
-
-        // 2. Handle "HH:MM:SS" string (Postgres TIME type)
-        // We split the string directly to avoid the JS Date object applying timezone offsets
-        if (timeStr.includes(':') && !timeStr.includes('T')) {
-            const parts = timeStr.split(':');
-            const h = parseInt(parts[0], 10);
-            const m = parseInt(parts[1], 10);
-            
-            if (isNaN(h) || isNaN(m)) return timeStr;
-
-            const ampm = h >= 12 ? 'PM' : 'AM';
-            const h12 = h % 12 || 12;
-            return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
-        }
-
-        // 3. If it's an ISO string (contains 'T'), parse and use local time
-        if (timeStr.includes('T')) {
-            const dateObj = new Date(timeStr);
-            if (!isNaN(dateObj.getTime())) {
-                return dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-            }
-        }
-
-        return timeStr;
-    } catch (e) {
-        return String(timeInput);
-    }
-};
-
-// Helper to calculate total hours (Logic preserved)
-const calculateTotalHours = (startInput: string | Date | null, endInput: string | Date | null) => {
-    if (!startInput || !endInput) return "0h 00m";
-
-    try {
-        let h1, m1, h2, m2;
-
-        if ((startInput instanceof Date || String(startInput).includes('T')) &&
-            (endInput instanceof Date || String(endInput).includes('T'))) {
-
-            const startDate = new Date(startInput);
-            const endDate = new Date(endInput);
-
-            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "-";
-
-            const diffMs = endDate.getTime() - startDate.getTime();
-            const diffMins = Math.floor(diffMs / 60000);
-
-            if (diffMins < 0) return "0h 00m";
-
-            const h = Math.floor(diffMins / 60);
-            const m = diffMins % 60;
-            return `${h}h ${m.toString().padStart(2, '0')}m`;
-        }
-
-        [h1, m1] = String(startInput).split(':').map(Number);
-        [h2, m2] = String(endInput).split(':').map(Number);
-
-        let diffMins = (h2 * 60 + m2) - (h1 * 60 + m1);
-        if (diffMins < 0) diffMins += 24 * 60; 
-
-        const h = Math.floor(diffMins / 60);
-        const m = diffMins % 60;
-        return `${h}h ${m.toString().padStart(2, '0')}m`;
-
-    } catch (e) {
-        return "-";
-    }
-};
-
 // Get Attendance Data
 router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
@@ -95,6 +15,7 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                 return res.status(400).json({ message: "Date is required for daily mode" });
             }
 
+            // FIX: Use TO_CHAR in SQL to get exactly what is stored in the DB
             const query = `
                 SELECT
                     u.id as user_id,
@@ -102,12 +23,14 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                     u.avatar_url,
                     u.designation,
                     COALESCE(a.status, 'Absent') as status,
+                    to_char(a.check_in_time, 'HH12:MI AM') as check_in_formatted,
+                    to_char(a.check_out_time, 'HH12:MI AM') as check_out_formatted,
                     a.check_in_time,
                     a.check_out_time,
                     a.id as attendance_id
                 FROM users u
                 LEFT JOIN attendance a ON u.id = a.user_id AND a.date = $1
-               WHERE role != 'admin' AND role != 'super_admin' AND u.status = 'Active'
+                WHERE u.role != 'admin' AND u.role != 'super_admin' AND u.status = 'Active'
                 ORDER BY u.name ASC
             `;
 
@@ -120,8 +43,10 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                 avatar: row.avatar_url,
                 designation: row.designation,
                 date: date,
-                checkIn: row.check_in_time ? formatTime(row.check_in_time, String(date)) : '-',
-                checkOut: row.check_out_time ? formatTime(row.check_out_time, String(date)) : '-',
+                // Use the pre-formatted string from SQL
+                checkIn: row.check_in_formatted || '-',
+                checkOut: row.check_out_formatted || '-',
+                // Keep the calculation logic as is
                 hours: calculateTotalHours(row.check_in_time, row.check_out_time),
                 status: row.status
             }));
@@ -138,6 +63,8 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                     a.id,
                     to_char(a.date, 'YYYY-MM-DD') as date_str,
                     a.status,
+                    to_char(a.check_in_time, 'HH12:MI AM') as check_in_formatted,
+                    to_char(a.check_out_time, 'HH12:MI AM') as check_out_formatted,
                     a.check_in_time,
                     a.check_out_time,
                     u.name,
@@ -159,16 +86,13 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                 avatar: row.avatar_url,
                 designation: row.designation,
                 date: row.date_str,
-                checkIn: row.check_in_time ? formatTime(row.check_in_time, row.date_str) : '-',
-                checkOut: row.check_out_time ? formatTime(row.check_out_time, row.date_str) : '-',
+                checkIn: row.check_in_formatted || '-',
+                checkOut: row.check_out_formatted || '-',
                 hours: calculateTotalHours(row.check_in_time, row.check_out_time),
                 status: row.status
             }));
 
             return res.json(formattedData);
-
-        } else {
-            return res.status(400).json({ message: "Invalid mode. Use 'daily' or 'history'." });
         }
 
     } catch (error) {
@@ -176,5 +100,21 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
         res.status(500).json({ message: "Internal server error" });
     }
 });
+
+// Helper to calculate total hours (kept same as your original)
+const calculateTotalHours = (startInput: any, endInput: any) => {
+    if (!startInput || !endInput) return "0h 00m";
+    try {
+        const start = String(startInput).split(':');
+        const end = String(endInput).split(':');
+        
+        let diffMins = (parseInt(end[0]) * 60 + parseInt(end[1])) - (parseInt(start[0]) * 60 + parseInt(start[1]));
+        if (diffMins < 0) diffMins += 24 * 60;
+
+        const h = Math.floor(diffMins / 60);
+        const m = diffMins % 60;
+        return `${h}h ${m.toString().padStart(2, '0')}m`;
+    } catch (e) { return "-"; }
+};
 
 export default router;
