@@ -35,6 +35,7 @@ import payroll from './routes/employees/payroll.js';
 import Leaves from './routes/employees/Leaves.js';
 import chatRoutes from './routes/chat.js';
 import { handleSocketConnection } from './controllers/chatController.js';
+import adminAttendance from './routes/admin/adminAttendance.js';
 
 
 // ===== FIX __dirname FOR ESM =====
@@ -126,6 +127,7 @@ app.use('/admin/dashboard', dashboardRoutes);
 app.use('/admin/tasks', adminTasks);
 app.use('/admin/meetings', meetingRoutes);
 app.use('/admin/notifications', notifications);
+app.use('/admin/attendance', adminAttendance);
 
 // Employees
 app.use('/settings', settings);
