@@ -56,7 +56,7 @@ router.post(
 
     
       const query = `
-            INSERT INTO tasks (title, project, description, priority, due_date, assigned_to, created_by)
+            INSERT INTO tasks (title, project_name, description, priority, due_date, assigned_to, created_by)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
         `;
@@ -111,7 +111,7 @@ router.post(
             const emailHtml = taskAssignmentEmail(
               taskWithDetails.assigned_to_name,
               taskWithDetails.title,
-              taskWithDetails.project,
+              taskWithDetails.project_name,
               taskWithDetails.description || "",
               taskWithDetails.priority,
               taskWithDetails.due_date,
@@ -184,7 +184,7 @@ router.patch(
         values.push(title);
       }
       if (project) {
-        fields.push(`project = $${idx++}`);
+        fields.push(`project_name = $${idx++}`);
         values.push(project);
       }
       if (description) {
