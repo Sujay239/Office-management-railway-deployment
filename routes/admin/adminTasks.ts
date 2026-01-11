@@ -6,6 +6,7 @@ import { enforce2FA } from "../../middlewares/enforce2FA.js";
 import { sendEmail } from "../../utils/mailer.js";
 import { logAudit } from "../../utils/auditLogger.js";
 import { taskAssignmentEmail } from "../../templates/taskAssignmentEmail.js";
+import decodeToken from "../../utils/decodeToken.js";
 
 const router = express.Router();
 
