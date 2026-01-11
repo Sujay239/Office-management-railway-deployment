@@ -42,7 +42,9 @@ router.post(
     const { title, project, description, priority, due_date, assigned_to } =
       req.body;
     // @ts-ignore
-    const created_by = req.user.id;
+    const token = req.cookies.token;
+    const decoded:any = await decodeToken(token);
+    const created_by = decoded.id;
 
     if (!title || !priority || !assigned_to) {
       return res
