@@ -158,29 +158,11 @@ router.post(
               createdUser.employment_type
             );
 
-            // const offerLetterHtml = offerLetterTemplate(
-            //   createdUser.name,
-            //   createdUser.designation,
-            //   createdUser.joining_date,
-            //   String(createdUser.salary),
-            //   adminData.name,
-            //   adminData.designation,
-            //   createdUser.location
-            // );
-
-            // const pdfBuffer = await generatePdf(offerLetterHtml);
 
             await sendEmail({
               to: createdUser.email,
               subject: "Welcome to the Team of Auto Computation! 🚀",
-              html: emailHtml,
-              attachments: [
-                // {
-                //   filename: "Offer_Letter.pdf",
-                //   content: pdfBuffer,
-                //   contentType: "application/pdf",
-                // },
-              ],
+              html: emailHtml
             });
             console.log(`Welcome email sent to ${createdUser.email}`);
           } catch (emailError) {

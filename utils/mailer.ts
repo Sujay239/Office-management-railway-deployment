@@ -9,11 +9,6 @@ interface SendMailOptions {
     text?: string;
     html?: string;
     from?: string;
-    attachments?: Array<{
-        // filename: string;
-        // content: Buffer | string;
-        // contentType?: string;
-    }>;
 }
 
 const transporter = nodemailer.createTransport({
@@ -26,7 +21,7 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-export const sendEmail = async ({ to, subject, text, html, from, attachments }: SendMailOptions) => {
+export const sendEmail = async ({ to, subject, text, html, from }: SendMailOptions) => {
     try {
         const companyName = "Auto Computation";
 
@@ -38,7 +33,6 @@ export const sendEmail = async ({ to, subject, text, html, from, attachments }: 
             subject: subject,
             text: text,
             html: html,
-            attachments: attachments,
         });
 
         console.log("Message sent: %s", info.messageId);
