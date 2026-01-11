@@ -5,19 +5,33 @@ import isAdmin from '../../middlewares/isAdmin.js';
 
 const router = express.Router();
 
-// Helper to format time (HH:MM:SS or ISO -> 12h format)
+// Helper to format time (Fixed to avoid 5:30h timezone shift)
 const formatTime = (timeInput: string | Date | null, dateStr?: string) => {
     if (!timeInput) return "-";
 
     try {
-        // If it's a Date object
+        // 1. If it's already a Date object (from a TIMESTAMP column)
         if (timeInput instanceof Date) {
             return timeInput.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
         }
 
         const timeStr = String(timeInput);
 
-        // If it's an ISO string (contains 'T'), parse as Date
+        // 2. Handle "HH:MM:SS" string (Postgres TIME type)
+        // We split the string directly to avoid the JS Date object applying timezone offsets
+        if (timeStr.includes(':') && !timeStr.includes('T')) {
+            const parts = timeStr.split(':');
+            const h = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            
+            if (isNaN(h) || isNaN(m)) return timeStr;
+
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const h12 = h % 12 || 12;
+            return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+        }
+
+        // 3. If it's an ISO string (contains 'T'), parse and use local time
         if (timeStr.includes('T')) {
             const dateObj = new Date(timeStr);
             if (!isNaN(dateObj.getTime())) {
@@ -25,36 +39,19 @@ const formatTime = (timeInput: string | Date | null, dateStr?: string) => {
             }
         }
 
-        // Handle "HH:MM:SS" string (Postgres TIME type is UTC)
-        if (dateStr) {
-            // Construct ISO UTC string
-            const utcDateStr = `${dateStr}T${timeStr}Z`;
-            const dateObj = new Date(utcDateStr);
-            if (!isNaN(dateObj.getTime())) {
-                return dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-            }
-        }
-
-        // Fallback for "HH:MM:SS" without date (Naive formatting, no timezone adjustment)
-        const [h, m] = timeStr.split(':').map(Number);
-        if (isNaN(h) || isNaN(m)) return timeStr;
-
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const h12 = h % 12 || 12;
-        return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+        return timeStr;
     } catch (e) {
         return String(timeInput);
     }
 };
 
-// Helper to calculate total hours
+// Helper to calculate total hours (Logic preserved)
 const calculateTotalHours = (startInput: string | Date | null, endInput: string | Date | null) => {
     if (!startInput || !endInput) return "0h 00m";
 
     try {
         let h1, m1, h2, m2;
 
-        // If Date objects or ISO strings (timestamps)
         if ((startInput instanceof Date || String(startInput).includes('T')) &&
             (endInput instanceof Date || String(endInput).includes('T'))) {
 
@@ -73,12 +70,11 @@ const calculateTotalHours = (startInput: string | Date | null, endInput: string 
             return `${h}h ${m.toString().padStart(2, '0')}m`;
         }
 
-        // Fallback for TIME strings "HH:MM:SS"
         [h1, m1] = String(startInput).split(':').map(Number);
         [h2, m2] = String(endInput).split(':').map(Number);
 
         let diffMins = (h2 * 60 + m2) - (h1 * 60 + m1);
-        if (diffMins < 0) diffMins += 24 * 60; // Handle overnight for simple time strings
+        if (diffMins < 0) diffMins += 24 * 60; 
 
         const h = Math.floor(diffMins / 60);
         const m = diffMins % 60;
@@ -89,7 +85,7 @@ const calculateTotalHours = (startInput: string | Date | null, endInput: string 
     }
 };
 
-// Get Attendance Data (Daily or History)
+// Get Attendance Data
 router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
         const { mode, date, month, year } = req.query;
@@ -99,7 +95,6 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                 return res.status(400).json({ message: "Date is required for daily mode" });
             }
 
-            // Fetch all active employees and their attendance for the specific date
             const query = `
                 SELECT
                     u.id as user_id,
@@ -118,8 +113,6 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
 
             const result = await pool.query(query, [date]);
 
-            // Format data for frontend
-            // We pass 'date' as string (from query) to formatTime to enable UTC conversion
             const formattedData = result.rows.map(row => ({
                 id: row.user_id,
                 attendanceId: row.attendance_id,
@@ -140,7 +133,6 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                 return res.status(400).json({ message: "Month and Year are required for history mode" });
             }
 
-            // Fetch attendance logs for the specific month and year
             const query = `
                 SELECT
                     a.id,
