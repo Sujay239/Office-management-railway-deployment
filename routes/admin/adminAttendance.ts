@@ -5,17 +5,36 @@ import isAdmin from '../../middlewares/isAdmin.js';
 
 const router = express.Router();
 
-// Get Attendance Data
+// YOUR REQUESTED FUNCTION
+const formatTime = (isoString: string | null) => {
+    if (!isoString) return "--";
+    try {
+        const date = new Date(isoString);
+        // This will automatically handle the 5:30h offset based on the user's browser location
+        return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    } catch (e) {
+        return "--";
+    }
+};
+
+// Helper for hours (Logic preserved)
+const calculateTotalHours = (start: any, end: any) => {
+    if (!start || !end) return "0h 00m";
+    const d1 = new Date(start);
+    const d2 = new Date(end);
+    const diffMs = d2.getTime() - d1.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const h = Math.floor(diffMins / 60);
+    const m = diffMins % 60;
+    return `${h}h ${m.toString().padStart(2, '0')}m`;
+};
+
 router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
         const { mode, date, month, year } = req.query;
 
         if (mode === 'daily') {
-            if (!date) {
-                return res.status(400).json({ message: "Date is required for daily mode" });
-            }
-
-            // FIX: Use TO_CHAR in SQL to get exactly what is stored in the DB
+            // SQL FIX: Combine date and time to create a valid ISO-like string
             const query = `
                 SELECT
                     u.id as user_id,
@@ -23,10 +42,8 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                     u.avatar_url,
                     u.designation,
                     COALESCE(a.status, 'Absent') as status,
-                    to_char(a.check_in_time, 'HH12:MI AM') as check_in_formatted,
-                    to_char(a.check_out_time, 'HH12:MI AM') as check_out_formatted,
-                    a.check_in_time,
-                    a.check_out_time,
+                    (a.date + a.check_in_time) as check_in_iso,
+                    (a.date + a.check_out_time) as check_out_iso,
                     a.id as attendance_id
                 FROM users u
                 LEFT JOIN attendance a ON u.id = a.user_id AND a.date = $1
@@ -43,78 +60,50 @@ router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) 
                 avatar: row.avatar_url,
                 designation: row.designation,
                 date: date,
-                // Use the pre-formatted string from SQL
-                checkIn: row.check_in_formatted || '-',
-                checkOut: row.check_out_formatted || '-',
-                // Keep the calculation logic as is
-                hours: calculateTotalHours(row.check_in_time, row.check_out_time),
+                checkIn: formatTime(row.check_in_iso),
+                checkOut: formatTime(row.check_out_iso),
+                hours: calculateTotalHours(row.check_in_iso, row.check_out_iso),
                 status: row.status
             }));
 
             return res.json(formattedData);
 
         } else if (mode === 'history') {
-            if (!month || !year) {
-                return res.status(400).json({ message: "Month and Year are required for history mode" });
-            }
-
             const query = `
                 SELECT
                     a.id,
                     to_char(a.date, 'YYYY-MM-DD') as date_str,
                     a.status,
-                    to_char(a.check_in_time, 'HH12:MI AM') as check_in_formatted,
-                    to_char(a.check_out_time, 'HH12:MI AM') as check_out_formatted,
-                    a.check_in_time,
-                    a.check_out_time,
+                    (a.date + a.check_in_time) as check_in_iso,
+                    (a.date + a.check_out_time) as check_out_iso,
                     u.name,
-                    u.email,
                     u.avatar_url,
                     u.designation
                 FROM attendance a
                 JOIN users u ON a.user_id = u.id
                 WHERE EXTRACT(MONTH FROM a.date) = $1
                   AND EXTRACT(YEAR FROM a.date) = $2
-                ORDER BY a.date DESC, a.check_in_time DESC
+                ORDER BY a.date DESC
             `;
 
             const result = await pool.query(query, [month, year]);
 
-            const formattedData = result.rows.map(row => ({
+            return res.json(result.rows.map(row => ({
                 id: row.id,
                 name: row.name,
                 avatar: row.avatar_url,
                 designation: row.designation,
                 date: row.date_str,
-                checkIn: row.check_in_formatted || '-',
-                checkOut: row.check_out_formatted || '-',
-                hours: calculateTotalHours(row.check_in_time, row.check_out_time),
+                checkIn: formatTime(row.check_in_iso),
+                checkOut: formatTime(row.check_out_iso),
+                hours: calculateTotalHours(row.check_in_iso, row.check_out_iso),
                 status: row.status
-            }));
-
-            return res.json(formattedData);
+            })));
         }
-
     } catch (error) {
-        console.error("Error fetching admin attendance:", error);
+        console.error(error);
         res.status(500).json({ message: "Internal server error" });
     }
 });
-
-// Helper to calculate total hours (kept same as your original)
-const calculateTotalHours = (startInput: any, endInput: any) => {
-    if (!startInput || !endInput) return "0h 00m";
-    try {
-        const start = String(startInput).split(':');
-        const end = String(endInput).split(':');
-        
-        let diffMins = (parseInt(end[0]) * 60 + parseInt(end[1])) - (parseInt(start[0]) * 60 + parseInt(start[1]));
-        if (diffMins < 0) diffMins += 24 * 60;
-
-        const h = Math.floor(diffMins / 60);
-        const m = diffMins % 60;
-        return `${h}h ${m.toString().padStart(2, '0')}m`;
-    } catch (e) { return "-"; }
-};
 
 export default router;
