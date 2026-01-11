@@ -182,7 +182,7 @@ export const getMessages = async (req: Request, res: Response) => {
       id: msg.id,
       senderId: msg.sender_id ? String(msg.sender_id) : "system",
       text: msg.text,
-      time: time: new Date(msg.created_at).toLocaleString("en-US", {
+      time: new Date(msg.created_at).toLocaleString("en-US", {
         timeZone: "Asia/Kolkata",
       }),
       isMe: msg.sender_id == userId,
