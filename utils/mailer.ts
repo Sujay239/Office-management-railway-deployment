@@ -10,9 +10,9 @@ interface SendMailOptions {
     html?: string;
     from?: string;
     attachments?: Array<{
-        filename: string;
-        content: Buffer | string;
-        contentType?: string;
+        // filename: string;
+        // content: Buffer | string;
+        // contentType?: string;
     }>;
 }
 

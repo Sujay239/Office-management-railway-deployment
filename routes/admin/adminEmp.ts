@@ -8,8 +8,8 @@ import matchPassword from "../../utils/matchPassword.js";
 import { enforce2FA } from "../../middlewares/enforce2FA.js";
 import { sendEmail } from "../../utils/mailer.js";
 import { welcomeEmployeeEmail } from "../../templates/welcomeEmployeeEmail.js";
-import { offerLetterTemplate } from "../../templates/offerLetter.js";
-import { generatePdf } from "../../utils/pdfGenerator.js";
+// import { offerLetterTemplate } from "../../templates/offerLetter.js";
+// import { generatePdf } from "../../utils/pdfGenerator.js";
 import { logAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
@@ -158,28 +158,28 @@ router.post(
               createdUser.employment_type
             );
 
-            const offerLetterHtml = offerLetterTemplate(
-              createdUser.name,
-              createdUser.designation,
-              createdUser.joining_date,
-              String(createdUser.salary),
-              adminData.name,
-              adminData.designation,
-              createdUser.location
-            );
+            // const offerLetterHtml = offerLetterTemplate(
+            //   createdUser.name,
+            //   createdUser.designation,
+            //   createdUser.joining_date,
+            //   String(createdUser.salary),
+            //   adminData.name,
+            //   adminData.designation,
+            //   createdUser.location
+            // );
 
-            const pdfBuffer = await generatePdf(offerLetterHtml);
+            // const pdfBuffer = await generatePdf(offerLetterHtml);
 
             await sendEmail({
               to: createdUser.email,
               subject: "Welcome to the Team of Auto Computation! 🚀",
               html: emailHtml,
               attachments: [
-                {
-                  filename: "Offer_Letter.pdf",
-                  content: pdfBuffer,
-                  contentType: "application/pdf",
-                },
+                // {
+                //   filename: "Offer_Letter.pdf",
+                //   content: pdfBuffer,
+                //   contentType: "application/pdf",
+                // },
               ],
             });
             console.log(`Welcome email sent to ${createdUser.email}`);
