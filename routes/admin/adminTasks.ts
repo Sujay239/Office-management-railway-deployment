@@ -39,6 +39,7 @@ router.post(
   isAdmin,
   enforce2FA,
   async (req: Request, res: Response) => {
+    try {
     const { title, project, description, priority, due_date, assigned_to } =
       req.body;
     // @ts-ignore
@@ -52,7 +53,7 @@ router.post(
         .json({ message: "Title, Priority, and Assigned To are required." });
     }
 
-    try {
+    
       const query = `
             INSERT INTO tasks (title, project, description, priority, due_date, assigned_to, created_by)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
