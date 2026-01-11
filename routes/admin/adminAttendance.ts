@@ -5,67 +5,76 @@ import isAdmin from '../../middlewares/isAdmin.js';
 
 const router = express.Router();
 
-// Helper to format time (HH:MM:SS or ISO -> 12h format)
+
 const formatTime = (timeInput: string | Date | null, dateStr?: string) => {
     if (!timeInput) return "-";
 
     try {
-        // If it's a Date object
+        let dateObj: Date;
+
+        // 1. Normalize input to a Date object
         if (timeInput instanceof Date) {
-            return timeInput.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        }
+            dateObj = new Date(timeInput);
+        } else {
+            const timeStr = String(timeInput);
 
-        const timeStr = String(timeInput);
-
-        // If it's an ISO string (contains 'T'), parse as Date
-        if (timeStr.includes('T')) {
-            const dateObj = new Date(timeStr);
-            if (!isNaN(dateObj.getTime())) {
-                return dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            if (timeStr.includes('T')) {
+                // If ISO string, parse directly
+                dateObj = new Date(timeStr);
+            } else if (dateStr) {
+                // If HH:MM:SS + Date string (Treat input as UTC)
+                const utcDateStr = `${dateStr}T${timeStr}Z`;
+                dateObj = new Date(utcDateStr);
+            } else {
+                // If just HH:MM:SS without a date, create a dummy date to handle math
+                // We assume the timeStr is UTC and we want to shift it
+                const [h, m] = timeStr.split(':').map(Number);
+                dateObj = new Date();
+                dateObj.setUTCHours(h, m, 0, 0); 
             }
         }
 
-        // Handle "HH:MM:SS" string (Postgres TIME type is UTC)
-        if (dateStr) {
-            // Construct ISO UTC string
-            const utcDateStr = `${dateStr}T${timeStr}Z`;
-            const dateObj = new Date(utcDateStr);
-            if (!isNaN(dateObj.getTime())) {
-                return dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-            }
-        }
+        // Validate date
+        if (isNaN(dateObj.getTime())) return String(timeInput);
 
-        // Fallback for "HH:MM:SS" without date (Naive formatting, no timezone adjustment)
-        const [h, m] = timeStr.split(':').map(Number);
-        if (isNaN(h) || isNaN(m)) return timeStr;
+        // 2. Add 5 Hours and 30 Minutes
+        const IST_OFFSET_MS = (5 * 60 * 60 * 1000) + (30 * 60 * 1000); // 5h 30m in ms
+        const shiftedDate = new Date(dateObj.getTime() + IST_OFFSET_MS);
 
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const h12 = h % 12 || 12;
-        return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+        // 3. Format the Shifted Date
+        // We use 'UTC' timezone here because we manually added the offset to the timestamp.
+        // This ensures the formatting simply prints the shifted numbers we just calculated.
+        return shiftedDate.toLocaleTimeString('en-US', { 
+            hour: 'numeric', 
+            minute: '2-digit', 
+            hour12: true,
+            timeZone: 'UTC' 
+        });
+
     } catch (e) {
+        console.error("Time formatting error:", e);
         return String(timeInput);
     }
 };
 
-// Helper to calculate total hours
+
 const calculateTotalHours = (startInput: string | Date | null, endInput: string | Date | null) => {
+    // ... (Your existing code for calculateTotalHours is fine, 
+    // as duration doesn't change even if you shift both start and end by +5:30)
     if (!startInput || !endInput) return "0h 00m";
 
     try {
         let h1, m1, h2, m2;
 
-        // If Date objects or ISO strings (timestamps)
         if ((startInput instanceof Date || String(startInput).includes('T')) &&
             (endInput instanceof Date || String(endInput).includes('T'))) {
 
             const startDate = new Date(startInput);
             const endDate = new Date(endInput);
-
             if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "-";
 
             const diffMs = endDate.getTime() - startDate.getTime();
             const diffMins = Math.floor(diffMs / 60000);
-
             if (diffMins < 0) return "0h 00m";
 
             const h = Math.floor(diffMins / 60);
@@ -73,12 +82,12 @@ const calculateTotalHours = (startInput: string | Date | null, endInput: string 
             return `${h}h ${m.toString().padStart(2, '0')}m`;
         }
 
-        // Fallback for TIME strings "HH:MM:SS"
+        // Fallback for simple strings
         [h1, m1] = String(startInput).split(':').map(Number);
         [h2, m2] = String(endInput).split(':').map(Number);
 
         let diffMins = (h2 * 60 + m2) - (h1 * 60 + m1);
-        if (diffMins < 0) diffMins += 24 * 60; // Handle overnight for simple time strings
+        if (diffMins < 0) diffMins += 24 * 60; 
 
         const h = Math.floor(diffMins / 60);
         const m = diffMins % 60;
@@ -88,6 +97,7 @@ const calculateTotalHours = (startInput: string | Date | null, endInput: string 
         return "-";
     }
 };
+
 
 // Get Attendance Data (Daily or History)
 router.get('/', authenticateToken, isAdmin, async (req: Request, res: Response) => {
