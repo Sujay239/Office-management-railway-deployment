@@ -5,55 +5,71 @@ import isAdmin from "../../middlewares/isAdmin.js";
 
 const router = express.Router();
 
-// Helper to format time (HH:MM:SS or ISO -> 12h format)
+// Helper to format time with +5h 30m offset
 const formatTime = (timeInput: string | Date | null, dateStr?: string) => {
   if (!timeInput) return "-";
 
+  // 5 hours 30 minutes in milliseconds
+  const OFFSET_MS = (5 * 60 + 30) * 60 * 1000; 
+
   try {
-    // If it's a Date object
+    let dateObj: Date | null = null;
+
+    // 1. Handle actual Date objects
     if (timeInput instanceof Date) {
-      return timeInput.toLocaleTimeString("en-US", {
+      dateObj = timeInput;
+    } 
+    // 2. Handle Strings
+    else {
+      const timeStr = String(timeInput);
+
+      // If it's an ISO string (e.g., from Postgres TIMESTAMP columns)
+      if (timeStr.includes("T")) {
+        dateObj = new Date(timeStr);
+      } 
+      // If it's a Time string (e.g., "14:30:00") AND we have the date
+      else if (dateStr) {
+        // Create a UTC date object so we can shift it consistently
+        const utcDateStr = `${dateStr}T${timeStr}Z`;
+        dateObj = new Date(utcDateStr);
+      } 
+      // 3. Fallback: Time string with NO date provided (Manual Math)
+      else {
+        let [h, m] = timeStr.split(":").map(Number);
+        if (isNaN(h) || isNaN(m)) return timeStr;
+
+        // Add the offset manually
+        h += 5;
+        m += 30;
+
+        // Handle minute overflow (e.g., 65 mins -> 1 hr 5 mins)
+        if (m >= 60) {
+          h += 1;
+          m -= 60;
+        }
+        // Handle day overflow (e.g., 25 hours -> 1 AM)
+        if (h >= 24) {
+          h -= 24;
+        }
+
+        const ampm = h >= 12 ? "PM" : "AM";
+        const h12 = h % 12 || 12;
+        return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
+      }
+    }
+
+    // Apply the offset to the Date Object if valid
+    if (dateObj && !isNaN(dateObj.getTime())) {
+      const shiftedDate = new Date(dateObj.getTime() + OFFSET_MS);
+      
+      return shiftedDate.toLocaleTimeString("en-US", {
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
       });
     }
 
-    const timeStr = String(timeInput);
-
-    // If it's an ISO string (contains 'T'), parse as Date
-    if (timeStr.includes("T")) {
-      const dateObj = new Date(timeStr);
-      if (!isNaN(dateObj.getTime())) {
-        return dateObj.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        });
-      }
-    }
-
-    // Handle "HH:MM:SS" string (Postgres TIME type is UTC)
-    if (dateStr) {
-      // Construct ISO UTC string
-      const utcDateStr = `${dateStr}T${timeStr}Z`;
-      const dateObj = new Date(utcDateStr);
-      if (!isNaN(dateObj.getTime())) {
-        return dateObj.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        });
-      }
-    }
-
-    // Fallback for "HH:MM:SS" without date (Naive formatting, no timezone adjustment)
-    const [h, m] = timeStr.split(":").map(Number);
-    if (isNaN(h) || isNaN(m)) return timeStr;
-
-    const ampm = h >= 12 ? "PM" : "AM";
-    const h12 = h % 12 || 12;
-    return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
+    return String(timeInput);
   } catch (e) {
     return String(timeInput);
   }
