@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import pool from './db/db';
+import pool from './db/db.js';
 
 export const initScheduler = () => {
     // Run daily at 00:00 (Midnight)
