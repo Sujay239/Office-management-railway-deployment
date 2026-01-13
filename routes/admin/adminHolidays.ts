@@ -7,7 +7,7 @@ import { enforce2FA } from '../../middlewares/enforce2FA.js';
 const router = express.Router();
 
 // Get all holidays
-router.get('/all', authenticateToken, isAdmin, enforce2FA, async (req: Request, res: Response) => {
+router.get('/all', authenticateToken, enforce2FA, async (req: Request, res: Response) => {
     try {
         const result = await pool.query('SELECT * FROM holidays ORDER BY date ASC');
         res.status(200).json(result.rows);
