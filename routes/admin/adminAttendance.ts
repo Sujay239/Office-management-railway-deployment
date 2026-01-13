@@ -149,7 +149,7 @@ router.get(
                     a.id as attendance_id
                 FROM users u
                 LEFT JOIN attendance a ON u.id = a.user_id AND a.date = $1
-                WHERE u.role != 'admin' AND u.status = 'Active'
+                WHERE u.role != 'admin' AND u.role != 'super_admin'
                 ORDER BY u.name ASC
             `;
 
