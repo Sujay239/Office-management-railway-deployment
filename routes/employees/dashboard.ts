@@ -128,13 +128,23 @@ router.post('/clock-in', authenticateToken, isEmployee, async (req: Request, res
         const currentTime = now.toISOString().split('T')[1].split('.')[0];
 
         const status = 'Present';
+        // UPSERT: Insert if new, Update if exists (e.g. Absent/On Leave) BUT only if NOT already clocked in (check_in_time is NULL)
         const query = `
             INSERT INTO attendance(user_id, date, status, check_in_time)
             VALUES($1, $2, $3, $4)
-            RETURNING id, check_in_time,check_out_time;
+            ON CONFLICT (user_id, date)
+            DO UPDATE SET
+                status = 'Present',
+                check_in_time = EXCLUDED.check_in_time
+            WHERE attendance.check_in_time IS NULL
+            RETURNING id, check_in_time, check_out_time;
         `;
 
         const result = await pool.query(query, [userId, currentDate, status, currentTime]);
+
+        if (result.rows.length === 0) {
+            return res.status(409).json({ message: 'Already clocked in for today' });
+        }
 
         return res.status(201).json({
             message: 'Clock-in successful',
@@ -143,13 +153,11 @@ router.post('/clock-in', authenticateToken, isEmployee, async (req: Request, res
         });
 
     } catch (error: any) {
-        if (error.code === '23505') {
-            return res.status(409).json({ message: 'Already clocked in or finished shift for today' });
-        }
-
+        // 23505 shouldn't happen with ON CONFLICT, but keeping generic error handling
         console.error('Error clocking in:', error);
         return res.status(500).json({ message: 'Internal server error' });
     }
+
 });
 
 
