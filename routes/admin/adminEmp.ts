@@ -431,8 +431,8 @@ router.post(
       // Note: We map user.id to original_user_id to keep a reference
       const insertQuery = `
       INSERT INTO past_employees
-      (original_user_id, name, email, designation, phone, location, joining_date, skills, employment_type, reason_for_exit, removed_by_admin_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      (original_user_id, name, email, designation, phone, location, joining_date, skills, employment_type, reason_for_exit, removed_by_admin_id, exit_date)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     `;
 
       await client.query(insertQuery, [
@@ -447,7 +447,16 @@ router.post(
         user.employment_type,
         reason || "Not specified",
         adminData.id,
+        new Date()
       ]);
+
+      // 4.5 Clean up Chat Data (Explicitly requested)
+      // Delete messages sent by user
+      await client.query("DELETE FROM messages WHERE sender_id = $1", [id]);
+      // Remove user from chat groups
+      await client.query("DELETE FROM chat_members WHERE user_id = $1", [id]);
+      // Delete chats created by user
+      await client.query("DELETE FROM chats WHERE created_by = $1", [id]);
 
       // 5. Delete from users table
       await client.query("DELETE FROM users WHERE id = $1", [id]);
@@ -561,6 +570,61 @@ router.get(
     } catch (error) {
       console.error("Error fetching employees:", error);
       res.status(500).json({ message: "Internal server error" });
+    }
+  }
+);
+
+// Delete Employee Permanently from Past Employees
+router.delete(
+  "/permanentRemoveEmp/:id",
+  authenticateToken,
+  isAdmin,
+  enforce2FA,
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      // Check if employee exists in past_employees
+      const checkEmp = await client.query(
+        "SELECT * FROM past_employees WHERE id = $1",
+        [id]
+      );
+
+      if (checkEmp.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ message: "Past employee record not found" });
+      }
+
+      const empName = checkEmp.rows[0].name;
+
+      // Delete from past_employees
+      await client.query("DELETE FROM past_employees WHERE id = $1", [id]);
+
+      await client.query("COMMIT");
+
+      // @ts-ignore
+      const adminId = req.user?.id;
+
+      await logAudit(
+        adminId,
+        'EMPLOYEE_PERMANENTLY_DELETED',
+        'past_employees',
+        Number(id),
+        { name: empName },
+        req
+      );
+
+      res.status(200).json({ message: "Employee record permanently deleted" });
+
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error("Error deleting past employee:", error);
+      res.status(500).json({ message: "Internal server error" });
+    } finally {
+      client.release();
     }
   }
 );
