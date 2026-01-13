@@ -37,6 +37,7 @@ import chatRoutes from './routes/chat.js';
 import { handleSocketConnection } from './controllers/chatController.js';
 import adminAttendance from './routes/admin/adminAttendance.js';
 import { sendEmail } from "./utils/mailer.js";
+import { initScheduler } from './scheduler.js';
 
 
 // ===== FIX __dirname FOR ESM =====
@@ -182,6 +183,11 @@ app.get("/debug-mail", async (req, res) => {
 
 // ===== SOCKET INIT =====
 handleSocketConnection(io);
+
+
+// Corn jobs
+initScheduler();
+
 
 // ===== START SERVER =====
 httpServer.listen(port, () => {
