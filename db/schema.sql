@@ -53,7 +53,9 @@ CREATE TABLE users (
     two_factor_enabled BOOLEAN DEFAULT FALSE,
     last_login TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    current_session_id TEXT DEFAULT NULL
 );
 
 -- Add the Circular FK constraint for Departments now that Users exists

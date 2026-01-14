@@ -8,8 +8,7 @@ import isAdmin from '../../middlewares/isAdmin.js';
 const router = express.Router();
 
 router.post('/login', async (req: Request, res: Response) => {
-    const { email, password } = req.body;
-
+    const { email, password, forceLogout } = req.body;
 
     try {
         const result = await pool.query(
@@ -27,10 +26,30 @@ router.post('/login', async (req: Request, res: Response) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
+        // --- Single Session Logic for Admin/Super Admin ---
+        let sessionId = null;
+        if (user.role === 'admin' || user.role === 'super_admin') {
+            if (user.current_session_id && !forceLogout) {
+                return res.status(409).json({
+                    message: "User is already logged in on another device.",
+                    sessionActive: true
+                });
+            }
+            // Generate new session ID
+            const crypto = await import('crypto');
+            sessionId = crypto.randomUUID();
+
+            // Save to DB
+            await pool.query('UPDATE users SET current_session_id = $1, last_login = CURRENT_TIMESTAMP WHERE id = $2', [sessionId, user.id]);
+        } else {
+            // For regular users, maybe update last_login
+            await pool.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [user.id]);
+        }
+
         // If 2FA is enabled, they are NOT verified yet.
         // If 2FA is disabled, they are automatically verified.
         const is2FAVerified = !user.two_factor_enabled;
-        const token = await generateToken(user.id, user.email, user.role, is2FAVerified);
+        const token = await generateToken(user.id, user.email, user.role, is2FAVerified, sessionId);
 
         res.cookie('token', token, {
             httpOnly: true,
@@ -95,7 +114,14 @@ router.post('/authorized-2fa', authenticateToken, isAdmin, async (req: Request, 
         }
 
         // Generate a new token with 2FA verified
-        const newToken = await generateToken(user.id, user.email, user.role, true);
+        // Generate a new token with 2FA verified, keeping the same session ID if it exists?
+        // Actually, we must preserve the session ID created during login.
+        // We need to fetch it or pass it. But wait, successful login created a sessionId in DB.
+        // We should fetch it from DB to be sure.
+
+        const sessionId = user.current_session_id;
+
+        const newToken = await generateToken(user.id, user.email, user.role, true, sessionId);
 
         if (newToken) {
             res.cookie('token', newToken, {
@@ -119,6 +145,15 @@ router.post('/authorized-2fa', authenticateToken, isAdmin, async (req: Request, 
 
 router.post('/logout', async (req: Request, res: Response) => {
     try {
+        const token = req.cookies?.token;
+        if (token) {
+            const decoded: any = await decodeToken(token);
+            if (decoded && decoded.id) {
+                // Clear session in DB
+                await pool.query('UPDATE users SET current_session_id = NULL WHERE id = $1', [decoded.id]);
+            }
+        }
+
         res.clearCookie('token', {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
