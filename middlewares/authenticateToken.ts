@@ -29,6 +29,12 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
           // Strict check: if (dbSessionId && user.sessionId !== dbSessionId)
 
           if (dbSessionId && user.sessionId !== dbSessionId) {
+            res.clearCookie('token', {
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'none',
+              path: '/'
+            });
             return res.status(401).json({ message: 'Session expired. You logged in on another device.' });
           }
         }
