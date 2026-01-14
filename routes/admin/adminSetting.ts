@@ -5,29 +5,13 @@ import isAdmin from '../../middlewares/isAdmin.js';
 import { enforce2FA } from '../../middlewares/enforce2FA.js';
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs';
 import bcrypt from 'bcrypt';
 import decodeToken from '../../utils/decodeToken.js';
 
 const router = express.Router();
 
 // --- 1. Multer Configuration ---
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadPath = 'uploads/';
-        // Ensure folder exists
-        if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-        }
-        cb(null, uploadPath);
-    },
-    filename: (req, file, cb) => {
-        // Generate a random unique name: timestamp + random number + extension
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        cb(null, `avatar-${uniqueSuffix}${ext}`);
-    }
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({ storage: storage });
 
@@ -45,8 +29,6 @@ router.post('/updateAdmin', authenticateToken, isAdmin, enforce2FA, upload.singl
         const id = data.id;
         // 1. Basic Validation
         if (!id || !password) {
-            // Remove uploaded file if validation fails to prevent junk files
-            if (req.file) fs.unlinkSync(req.file.path);
             return res.status(400).json({ message: 'User ID and Password are required to save changes.' });
         }
 
@@ -55,7 +37,6 @@ router.post('/updateAdmin', authenticateToken, isAdmin, enforce2FA, upload.singl
         const userResult = await pool.query(userQuery, [id]);
 
         if (userResult.rows.length === 0) {
-            if (req.file) fs.unlinkSync(req.file.path);
             return res.status(404).json({ message: 'User not found' });
         }
 
@@ -65,7 +46,6 @@ router.post('/updateAdmin', authenticateToken, isAdmin, enforce2FA, upload.singl
         // We compare the plaintext password sent in body with the hash in DB
         const isMatch = await bcrypt.compare(password, currentUser.password_hash);
         if (!isMatch) {
-            if (req.file) fs.unlinkSync(req.file.path);
             return res.status(401).json({ message: 'Incorrect password. Changes not saved.' });
         }
 
@@ -73,24 +53,10 @@ router.post('/updateAdmin', authenticateToken, isAdmin, enforce2FA, upload.singl
         let avatarUrl = currentUser.avatar_url; // Default to existing
 
         if (req.file) {
-            // New image uploaded!
-            const newFilename = req.file.filename;
-
-            // Delete old avatar if it exists and is not null
-            if (currentUser.avatar_url) {
-                const oldPath = path.join('uploads', currentUser.avatar_url);
-                if (fs.existsSync(oldPath)) {
-                    try {
-                        fs.unlinkSync(oldPath); // Delete old file
-                    } catch (err) {
-                        console.error("Failed to delete old avatar:", err);
-                        // Continue even if delete fails
-                    }
-                }
-            }
-
-            // Set new avatar URL to be saved
-            avatarUrl = newFilename;
+            // Convert buffer to base64
+            const b64 = req.file.buffer.toString('base64');
+            const mimeType = req.file.mimetype;
+            avatarUrl = `data:${mimeType};base64,${b64}`;
         }
 
         // 5. Update Database
@@ -119,10 +85,6 @@ router.post('/updateAdmin', authenticateToken, isAdmin, enforce2FA, upload.singl
         });
 
     } catch (error) {
-        // Cleanup: If server error occurs after file upload, delete the new file
-        if (req.file) {
-            fs.unlink(req.file.path, (err) => { if (err) console.error(err); });
-        }
         console.error('Error updating admin:', error);
         res.status(500).json({ message: 'Internal server error while updating admin' });
     }

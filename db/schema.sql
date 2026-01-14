@@ -257,6 +257,13 @@ CREATE TABLE past_employees (
     removed_by_admin_id INT REFERENCES users(id) -- HR/Admin who archived
 );
 
+CREATE TABLE allowed_ips (
+    id SERIAL PRIMARY KEY,
+    ip_address VARCHAR(45) NOT NULL UNIQUE,
+    label VARCHAR(100), -- e.g. "Office Wi-Fi", "VPN"
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- =============================================
 -- 10. INDEXING (For High Performance)
 -- =============================================

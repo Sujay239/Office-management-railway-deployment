@@ -20,7 +20,7 @@ router.post(
   isAdmin,
   enforce2FA,
   async (req: Request, res: Response) => {
-    const {
+    let {
       name,
       email,
       designation,
@@ -33,6 +33,10 @@ router.post(
       department_id,
       role // Add this
     } = req.body;
+
+    if (email) {
+      email = email.toLowerCase();
+    }
 
 
 
@@ -194,7 +198,7 @@ router.put(
     const client = await pool.connect();
 
     const { id } = req.params;
-    const {
+    let {
       name,
       email,
       designation,
@@ -207,6 +211,10 @@ router.put(
       department_id,
       role
     } = req.body;
+
+    if (email) {
+      email = email.toLowerCase();
+    }
 
     if (!name || !email || !designation || !phone || !salary) {
       return res.status(400).json({

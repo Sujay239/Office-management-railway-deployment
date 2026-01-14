@@ -13,6 +13,7 @@ import db from './db/db.js';
 import authRoutes from './routes/auth/auth.js';
 import adminEmp from './routes/admin/adminEmp.js';
 import manageAdmins from './routes/admin/manageAdmins.js';
+import manageIPs from './routes/admin/manageIPs.js';
 import adminPayroll from './routes/admin/adminPayroll.js';
 import AdminLeaves from './routes/admin/AdminLeavesManagement.js';
 import adminSetting from './routes/admin/adminSetting.js';
@@ -58,7 +59,7 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: allowedOrigins,
-  credentials: true, 
+  credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token', 'Access-Control-Allow-Headers']
 };
@@ -72,7 +73,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins, 
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true, // Required for cookies in Socket.IO handshake
     allowedHeaders: ["cookie"]
@@ -130,6 +131,7 @@ app.use('/superadmin/audit-logs', auditLogsRoutes);
 app.use('/admin/departments', adminDepartments);
 app.use('/admin/emp', adminEmp);
 app.use('/api/admins', manageAdmins);
+app.use('/api/ips', manageIPs);
 app.use('/payroll', adminPayroll);
 app.use('/admin/leaves', AdminLeaves);
 app.use('/admin/settings', adminSetting);

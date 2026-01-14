@@ -165,6 +165,28 @@ router.post(
       const currentDate = now.toISOString().split("T")[0];
       const currentTime = now.toISOString().split("T")[1].split(".")[0];
 
+      const role = data.role; // Assuming role is in token, if not verify with DB
+
+      // --- IP Restriction Logic ---
+      if (role !== 'admin' && role !== 'super_admin') {
+        // Get Client IP
+        let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+        if (Array.isArray(clientIp)) {
+          clientIp = clientIp[0];
+        }
+        // Normalize IPv6 localhost
+        if (clientIp === '::1') clientIp = '127.0.0.1';
+
+        // Check if IP is allowed
+        const ipCheck = await pool.query('SELECT 1 FROM allowed_ips WHERE ip_address = $1', [clientIp]);
+
+        if (ipCheck.rows.length === 0) {
+          return res.status(403).json({
+            message: `Clock-in denied. Your IP (${clientIp}) is not authorized.`
+          });
+        }
+      }
+
       const status = "Present";
       // UPSERT: Insert if new, Update if exists (e.g. Absent/On Leave) BUT only if NOT already clocked in (check_in_time is NULL)
       const query = `

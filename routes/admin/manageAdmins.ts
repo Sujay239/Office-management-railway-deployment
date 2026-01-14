@@ -11,7 +11,10 @@ const router = express.Router();
 
 router.post('/addAdmin', authenticateToken, isSuperAdmin, enforce2FA, async (req: Request, res: Response) => {
     try {
-        const { name, email, password } = req.body;
+        let { name, email, password } = req.body;
+        if (email) {
+            email = email.toLowerCase();
+        }
         if (!name || !email || !password) {
             return res.status(400).json({ message: 'All fields are required' });
         }
@@ -80,7 +83,7 @@ router.delete('/removeAdmin/:id', authenticateToken, isSuperAdmin, enforce2FA, a
             RETURNING *
         `;
 
-        const admins = await client.query('SELECT * FROM users WHERE role = $1', ['admin']);
+        // const admins = await client.query('SELECT * FROM users WHERE role = $1', ['admin']);
 
         // if (admins.rows.length === 1) {
         //     await client.query('ROLLBACK');
@@ -112,7 +115,11 @@ router.delete('/removeAdmin/:id', authenticateToken, isSuperAdmin, enforce2FA, a
 
 router.put('/updateAdmin/:id', authenticateToken, isSuperAdmin, enforce2FA, async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { name, email, password } = req.body;
+    let { name, email, password } = req.body;
+
+    if (email) {
+        email = email.toLowerCase();
+    }
 
     try {
         // Check if email exists for other user
