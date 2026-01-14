@@ -168,16 +168,32 @@ router.post(
       const role = data.role; // Assuming role is in token, if not verify with DB
 
       // --- IP Restriction Logic ---
+      // --- IP Restriction Logic ---
       if (role !== 'admin' && role !== 'super_admin') {
-        // Get Client IP
-        let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
-        if (Array.isArray(clientIp)) {
-          clientIp = clientIp[0];
+
+        // 1. Get raw IP (Type: string | string[] | undefined)
+        let rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+
+        // 2. FIX TS ERROR: Ensure it is a string.
+        // If it is an array, take the first element.
+        let clientIp: string = Array.isArray(rawIp) ? rawIp[0] : rawIp;
+
+        // 3. Handle Proxy chaining (comma separated IPs)
+        if (clientIp && clientIp.includes(',')) {
+          clientIp = clientIp.split(',')[0].trim();
         }
-        // Normalize IPv6 localhost
+
+        // 4. Normalize IPv6 mapped to IPv4
+        if (clientIp && clientIp.startsWith('::ffff:')) {
+          clientIp = clientIp.replace('::ffff:', '');
+        }
+
+        // 5. Normalize Localhost
         if (clientIp === '::1') clientIp = '127.0.0.1';
 
-        // Check if IP is allowed
+        console.log(`[Clock-In Debug] User: ${data.id} | IP: ${clientIp}`);
+
+        // 6. Check if IP is allowed
         const ipCheck = await pool.query('SELECT 1 FROM allowed_ips WHERE ip_address = $1', [clientIp]);
 
         if (ipCheck.rows.length === 0) {
