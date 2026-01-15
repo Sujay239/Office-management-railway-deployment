@@ -26,8 +26,10 @@ router.post('/login', async (req: Request, res: Response) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        // --- Single Session Logic for Admin/Super Admin ---
+        // --- Session Logic ---
         let sessionId = null;
+
+        // Strict Single Session Check for Admin/Super Admin
         if (user.role === 'admin' || user.role === 'super_admin') {
             if (user.current_session_id && !forceLogout) {
                 return res.status(409).json({
@@ -35,16 +37,14 @@ router.post('/login', async (req: Request, res: Response) => {
                     sessionActive: true
                 });
             }
-            // Generate new session ID
-            const crypto = await import('crypto');
-            sessionId = crypto.randomUUID();
-
-            // Save to DB
-            await pool.query('UPDATE users SET current_session_id = $1, last_login = CURRENT_TIMESTAMP WHERE id = $2', [sessionId, user.id]);
-        } else {
-            // For regular users, maybe update last_login
-            await pool.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [user.id]);
         }
+
+        // Generate new session ID for EVERYONE
+        const crypto = await import('crypto');
+        sessionId = crypto.randomUUID();
+
+        // Save to DB
+        await pool.query('UPDATE users SET current_session_id = $1, last_login = CURRENT_TIMESTAMP WHERE id = $2', [sessionId, user.id]);
 
         // If 2FA is enabled, they are NOT verified yet.
         // If 2FA is disabled, they are automatically verified.

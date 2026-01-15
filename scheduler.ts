@@ -2,6 +2,38 @@ import cron from "node-cron";
 import pool from "./db/db.js";
 
 export const initScheduler = () => {
+  // Run daily at 23:30: Auto Clock-out & Session Clear for non-admins
+  cron.schedule("30 23 * * *", async () => {
+    console.log("Running Auto Clock-Out & Session Reset Job...");
+    try {
+      const query = `
+        WITH closed_attendance AS (
+            UPDATE attendance
+            SET check_out_time = '23:30:00',
+                remarks = CASE
+                            WHEN remarks IS NULL OR remarks = '' THEN 'Auto Clock-out'
+                            ELSE remarks || ' | Auto Clock-out'
+                          END
+            WHERE date = CURRENT_DATE
+              AND check_out_time IS NULL
+              AND user_id IN (
+                  SELECT id FROM users
+                  WHERE role NOT IN ('admin', 'super_admin')
+              )
+            RETURNING user_id
+        )
+        UPDATE users
+        SET current_session_id = NULL
+        WHERE id IN (SELECT user_id FROM closed_attendance);
+      `;
+
+      const result = await pool.query(query);
+      console.log(`Auto Clock-Out Job Completed. Sessions cleared: ${result.rowCount}`);
+    } catch (err) {
+      console.error("Error running auto clock-out job:", err);
+    }
+  });
+
   // Run daily at 00:00 (Midnight)
   cron.schedule("0 0 * * *", async () => {
     console.log("Running Daily Auto-Absent Job...");
