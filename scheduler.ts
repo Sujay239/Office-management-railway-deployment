@@ -6,15 +6,19 @@ export const initScheduler = () => {
   cron.schedule("30 23 * * *", async () => {
     console.log("Running Auto Clock-Out & Session Reset Job...");
     try {
+      const now = new Date();
+      const currentDate = now.toISOString().split("T")[0]; // YAYYY-MM-DD (UTC)
+      const autoClockOutTime = "23:30:00";
+
       const query = `
         WITH closed_attendance AS (
             UPDATE attendance
-            SET check_out_time = '23:30:00',
+            SET check_out_time = $2,
                 remarks = CASE
                             WHEN remarks IS NULL OR remarks = '' THEN 'Auto Clock-out'
                             ELSE remarks || ' | Auto Clock-out'
                           END
-            WHERE date = CURRENT_DATE
+            WHERE date = $1
               AND check_out_time IS NULL
               AND user_id IN (
                   SELECT id FROM users
@@ -24,10 +28,11 @@ export const initScheduler = () => {
         )
         UPDATE users
         SET current_session_id = NULL
-        WHERE id IN (SELECT user_id FROM closed_attendance);
+        WHERE id IN (SELECT user_id FROM closed_attendance)
+        RETURNING id;
       `;
 
-      const result = await pool.query(query);
+      const result = await pool.query(query, [currentDate, autoClockOutTime]);
       console.log(`Auto Clock-Out Job Completed. Sessions cleared: ${result.rowCount}`);
     } catch (err) {
       console.error("Error running auto clock-out job:", err);
