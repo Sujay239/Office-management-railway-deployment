@@ -88,7 +88,7 @@ export const getChats = async (req: Request, res: Response) => {
       chats.map(async (chat: any) => {
         if (chat.type === "direct") {
           const memberQuery = `
-                SELECT u.id, u.name, u.avatar_url, u.email
+                SELECT u.id, u.name, u.avatar_url, u.email,u.phone
                 FROM chat_members cm
                 JOIN users u ON cm.user_id = u.id
                 WHERE cm.chat_id = $1 AND cm.user_id != $2
