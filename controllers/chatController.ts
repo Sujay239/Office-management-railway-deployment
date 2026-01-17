@@ -270,7 +270,7 @@ export const getUsers = async (req: Request, res: Response) => {
     const token = req.cookies?.token;
     const data: any = await decodeToken(token);
     const result = await db.query(
-      "SELECT id::text, name, COALESCE(designation, role::text) as role, avatar_url, phone as avatar FROM users WHERE status = 'Active' AND id != $1 AND name IS NOT NULL AND name != ''",
+      "SELECT id::text, name, COALESCE(designation, role::text) as role, avatar_url, phone FROM users WHERE status = 'Active' AND id != $1 AND name IS NOT NULL AND name != ''",
       [data.id]
     );
     res.json(result.rows);
