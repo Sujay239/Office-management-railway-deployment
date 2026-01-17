@@ -4,7 +4,7 @@ import db from "../db/db.js";
 import decodeToken from "../utils/decodeToken.js";
 
 export const getChats = async (req: Request, res: Response) => {
-  const userId = (req as any).user.id; 
+  const userId = (req as any).user.id;
 
   try {
     // Fetch all chats the user is a member of
@@ -129,9 +129,10 @@ export const getChats = async (req: Request, res: Response) => {
 export const getMessages = async (req: Request, res: Response) => {
   const chatId = req.params.chatId;
   const userId = (req as any).user.id;
+  const cursor = req.query.cursor ? parseInt(req.query.cursor as string) : null;
+  const limitCount = req.query.limit ? parseInt(req.query.limit as string) : 20;
 
   try {
-    // Check membership first
     // Check membership and get chat type + join time
     const memberCheck = await db.query(
       `
@@ -168,17 +169,26 @@ export const getMessages = async (req: Request, res: Response) => {
 
     const queryParams: any[] = [chatId];
 
+    // Cursor for pagination
+    if (cursor) {
+      query += ` AND m.id < $${queryParams.length + 1}`;
+      queryParams.push(cursor);
+    }
+
     // LOGIC: Groups = Restricted History (only after join). Spaces/Direct = Full History.
     if (type === "group") {
-      query += ` AND m.created_at >= $2`;
+      query += ` AND m.created_at >= $${queryParams.length + 1}`;
       queryParams.push(joined_at);
     }
 
-    query += ` ORDER BY m.created_at ASC`;
+    // Use ID DESC for cursor based pagination to get the latest ones first (relative to cursor)
+    query += ` ORDER BY m.id DESC LIMIT $${queryParams.length + 1}`;
+    queryParams.push(limitCount);
 
     const result = await db.query(query, queryParams);
 
-    const messages = result.rows.map((msg: any) => ({
+    // Reverse the results so they are in ASC order for the client
+    const messages = result.rows.reverse().map((msg: any) => ({
       id: msg.id,
       senderId: msg.sender_id ? String(msg.sender_id) : "system",
       text: msg.text,
@@ -189,10 +199,10 @@ export const getMessages = async (req: Request, res: Response) => {
       isSystem: msg.sender_type === "system",
       attachment: msg.attachment_url
         ? {
-            type: msg.attachment_type,
-            url: msg.attachment_url,
-            name: "Attachment", // You might want to store original filename in DB
-          }
+          type: msg.attachment_type,
+          url: msg.attachment_url,
+          name: "Attachment",
+        }
         : undefined,
       isRead: msg.is_read,
       senderName: msg.sender_name,
@@ -392,8 +402,7 @@ export const handleSocketConnection = (io: Server) => {
         }
 
         console.log(
-          `Message in ${roomName}: sender=${userId}, isRead=${isRead}, roomSize=${
-            room?.size || 0
+          `Message in ${roomName}: sender=${userId}, isRead=${isRead}, roomSize=${room?.size || 0
           }`
         );
 
